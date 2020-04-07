@@ -41,6 +41,7 @@ After you have generated the TXTimages then run resize_images.py, after that's d
 Running them in either idle or CMD is best as you can see their output.
 
 Change the variables at the top of each script to suit your liking, I have left them on the settings i found most useful.
+In resize_images.py 
 
 
 Install dependencies
