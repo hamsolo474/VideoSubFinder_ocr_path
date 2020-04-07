@@ -4,6 +4,7 @@ from PIL import Image
 import os
 import time
 import os
+import concurrent.futures
 
 #used for resizing, it will resize the image maintaining aspect ratio
 # to the smallest dimension, my images were 5000 by 1000, so it gets shrunk to
@@ -28,24 +29,22 @@ def get_boundaries(name, debug=False):
     canny_output = cv.Canny(src_gray, threshold, threshold * 2)
     contours, _ = cv.findContours(canny_output, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     offset = int(src.shape[1]*0.03)
-    # Get the moments
-    mu = [None]*len(contours)
-    for i in range(len(contours)):
-        mu[i] = cv.moments(contours[i])
     # Get the mass centers
     mc = [None]*len(contours)
     for i in range(len(contours)):
+        # Get the moment
+        moment = cv.moments(contours[i])
         # add 1e-5 to avoid division by zero
-        mc[i] = (mu[i]['m10'] / (mu[i]['m00'] + 1e-5), mu[i]['m01'] / (mu[i]['m00'] + 1e-5))
+        mc[i] = (moment['m10'] / (moment['m00'] + 1e-5), moment['m01'] / (moment['m00'] + 1e-5))
     # Draw contours
-    minarea = 1000
+    #minarea = 1000
     for i, j in enumerate(contours):
         val = int(mc[i][0])
         area = cv.contourArea(contours[i])
         #val = int(i[0][0][0])
-        if leftmost > val and val > offset and area > minarea:
+        if leftmost > val and val > offset:# and area > minarea:
            leftmost = val
-        if rightmost < val and val < src.shape[1]-offset and area > minarea:
+        if rightmost < val and val < src.shape[1]-offset:# and area > minarea:
             rightmost = val
         if debug >= 2:
             print('val: ',end='')
@@ -66,15 +65,19 @@ def run_on(path, debug=False):
     startTime = int(time.time())
     op = []
     count = 0
+    namelist = []
     for root, dirs, files in os.walk(path):
         for name in files:
             if ext in name:
-                count+=1
-                if debug >= 1: print('Time Elapsed:',
-                                     str(int(time.time())-startTime),
-                                     'secs. Image:', count, 'Name:', name)
-                shrink_and_crop(name, get_boundaries(name), size, debug)
-    print('Done in {} seconds!'.format(str(int(time.time())-startTime))
+                namelist.append(name)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for name, result in zip(namelist, executor.map(get_boundaries, namelist)):
+            if debug >= 1: print('Time Elapsed:',
+                                  str(int(time.time())-startTime),
+                                 'secs. Image:', count, 'Name:', name)
+            shrink_and_crop(name, result, size, debug)
+            count+=1
+    print('Done in {} seconds!'.format(str(int(time.time())-startTime)))
 
 def shrink_and_crop(name, cropbox, maxsize, debug=False):
     im = Image.open(name)
