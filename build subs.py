@@ -71,7 +71,7 @@ def gather_subs_tp(path, showConfidence=True, debug=False):
             except KeyboardInterrupt:
                 raise KeyboardInterrupt
             except:
-                print('Did not run on: ', i)
+                print(f'Did not run on: {name}')
     return op
 
 def gather_subs_pp(path, debug=False):
